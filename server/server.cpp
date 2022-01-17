@@ -28,34 +28,57 @@ bool Server::InitStocket()
         optLinger.l_linger = 1;
     }
 
-    listenFd_ = socket(AF_INET, SOCK_STREAM, 0);
-    if(listenFd_ < 0){
+    sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
+    if(sockfd_ < 0){
         return false;
     }
 
-    ret = setsockopt(listenFd_, SOL_SOCKET, SO_LINGER, &optLinger, sizeof(optLinger));
+    ret = setsockopt(sockfd_, SOL_SOCKET, SO_LINGER, &optLinger, sizeof(optLinger));
     if(ret < 0){
-        close(listenFd_);
+        close(sockfd_);
         return false;
     }
 
     int optval = 1;
-    ret = setsockopt(listenFd_, SOL_SOCKET, SO_REUSEADDR, (const void*)&optval, sizeof(int));
+    ret = setsockopt(sockfd_, SOL_SOCKET, SO_REUSEADDR, (const void*)&optval, sizeof(int));
     if(ret == -1){
-        close(listenFd_);
+        close(sockfd_);
         return false;
     }
 
-    ret = bind(listenFd_, (struct sockaddr *)&addr, sizeof(addr));
+    ret = bind(sockfd_, (struct sockaddr *)&addr, sizeof(addr));
     if(ret < 0){
         return false;
     }
 
-    ret = listen(listenFd_, 6);
+    ret = listen(sockfd_, 6);
     if(ret < 0){
-        close(listenFd_);
+        close(sockfd_);
         return false;
     }
 
+    ret = epoller_->AddFd(sockfd_, listenEvent_ | EPOLLIN);
+    if(ret == 0) {
+        close(sockfd_);
+        return false;
+    }
+
+    SetNonblock(sockfd_);
     return true;
+}
+
+int Server::SetNonblock(int sockfd)
+{
+    assert(sockfd > 0);
+    return fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFD, 0) | O_NONBLOCK);
+}
+
+void Server::DealWrite()
+{
+
+}
+
+void Server::DealRead()
+{
+    
 }
