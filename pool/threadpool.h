@@ -7,16 +7,25 @@
 #include <thread>
 #include <functional>
 #include <assert.h>
+
+struct Pool {
+    bool isClosed;
+    std::mutex mtx;
+    std::condition_variable cond;
+    std::queue<std::function<void()>> tasks;
+};
 class ThreadPool
 {
 public:
-    explicit ThreadPool(size_t threadCount = 8): pool_(std::make_shared<Pool>()){
-        assert(threadCount > 0);
-        for(size_t i = 0; i < threadCount; i++){
-            std::thread([pool = pool_](){
+    /*
+     * 初始化線程池
+     */
+    explicit ThreadPool(size_t thread_num = 8) : pool_(std::make_shared<Pool>()){
+        for(size_t i = 0; i < thread_num; i++) {
+            std::thread([pool = pool_]{
                 std::unique_lock<std::mutex> locker(pool->mtx);
-                while(true){
-                    if(!pool->tasks.empty()){
+                while(1) {
+                    if(!pool->tasks.empty()) {
                         auto task = std::move(pool->tasks.front());
                         pool->tasks.pop();
                         locker.unlock();
@@ -29,15 +38,31 @@ public:
             }).detach();
         }
     }
+    ThreadPool() = default;
 
+    ~ThreadPool() {
+        if(static_cast<bool>(pool_)) {
+            {
+                std::unique_lock<std::mutex> locker(pool_->mtx);
+                pool_->isClosed = true;
+            }
+            pool_->cond.notify_all();
+        }
+    }
+
+    /*
+     *  將任務加入隊列中，並呼叫線程去處理
+     */
+    template<class T>
+    void AddTask(T task) {
+        {
+            std::unique_lock<std::mutex> locker(pool_->mtx);
+            pool_->tasks.emplace(std::forward<T>(task));
+        }
+        pool_->cond.notify_one();
+    }
 
 private:
-    struct Pool {
-        std::mutex mtx;
-        std::condition_variable cond;
-        bool isClosed;
-        std::queue<std::function<void()>> tasks;
-    };
     std::shared_ptr<Pool> pool_;
 };
 

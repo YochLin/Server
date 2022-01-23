@@ -1,13 +1,46 @@
 #include "server.h"
 
-Server::Server(int port)
+Server::Server(int port, int thread_num) : thread_(new ThreadPool(thread_num)), 
+                                           isClose_(false),
+                                           epoller_(new Epoller())
 {
-
+    if(!InitStocket()) 
+        isClose_ = true;
 }
 
 Server::~Server()
 {
+    isClose_ = true;
+}
 
+void Server::Start()
+{
+    int timeMS = -1;
+    while(!isClose_) {
+        int eventCnt = epoller_->Wait(timeMS);
+        for(int i = 0; i < eventCnt; i++) {
+            int fd = epoller_->GetEventFd(i);
+        }
+    }
+}
+
+void Server::InitEventMode(int trigMode)
+{
+    listenEvent_ = EPOLLRDHUP;
+    connEvent_ = EPOLLONESHOT | EPOLLRDHUP;
+    switch (trigMode)
+    {
+    case 0:
+        break;
+    case 1:
+        connEvent_ |= EPOLLET;
+        break;
+    case 2:
+        listenEvent_ |= EPOLLET;
+        break;
+    default:
+        break;
+    }
 }
 
 bool Server::InitStocket()
@@ -81,4 +114,14 @@ void Server::DealWrite()
 void Server::DealRead()
 {
     
+}
+
+void Server::DealListen()
+{
+    struct sockaddr_in addr;
+    socklen_t len = sizeof(addr);
+    int fd = accept(sockfd_, (struct sockaddr*)&addr, &len);
+    if(fd <= 0) return;
+    
+    AddClient(fd, addr);
 }

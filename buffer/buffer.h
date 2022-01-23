@@ -14,16 +14,21 @@ public:
     Buffer();
     ~Buffer();
 
-    ssize_t Readfd(int32_t sockfd, int* event_errno);
-    ssize_t Writefd(int32_t sockfd, int* event_errno);
+    ssize_t Readfd(int32_t sockfd);
+    ssize_t Writefd(int32_t sockfd);
 
-    size_t WriteBytes() const;
-    size_t ReadBytes() const;
+    size_t WriteableBytes() const;
+    size_t ReadableBytes() const;
 
-    void Append(const std::string stf);
+    char* BeginWrite();
+    void HasWriten(size_t len);
+
+    const char* Peek() const;
+
+    void Append(const std::string str);
     void Append(const char* str, size_t len);
     void Append(const void* data, size_t len);
-    void Append(const Buffer& buf);
+    // void Append(const Buffer& buf);
 
 private:
     std::vector<char> buffer_;

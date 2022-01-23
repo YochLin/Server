@@ -5,14 +5,16 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <fcntl.h>
+#include <unordered_map>
 
 #include "eopller.h"
 #include "threadpool.h"
+#include "httpconn.h"
 
 class Server
 {
 public:
-    explicit Server(int port);
+    explicit Server(int port, int thread_num);
     ~Server();
 
     void Start();
@@ -20,7 +22,8 @@ public:
 private:
 
     bool InitStocket();
-    void AddClient();
+    void InitEventMode(int trigMode);
+    void AddClient(int fd, sockaddr_in addr);
 
     void DealListen();
     void DealWrite();
@@ -40,6 +43,8 @@ private:
     uint32_t connEvent_;
 
     std::unique_ptr<Epoller> epoller_;
+    std::unique_ptr<ThreadPool> thread_;
+    std::unordered_map<int, HttpConn> users_;
 };
 
 #endif
