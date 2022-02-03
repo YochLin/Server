@@ -1,16 +1,29 @@
 #include "server.h"
 
-Server::Server(int port, int thread_num) : thread_(new ThreadPool(thread_num)), 
-                                           isClose_(false),
-                                           epoller_(new Epoller())
+Server::Server(int port, int trigMode, int thread_num) : port_(port),
+                                                         thread_(new ThreadPool(thread_num)), 
+                                                         isClose_(false),
+                                                         epoller_(new Epoller())
 {
-    if(!InitStocket()) 
+    srcDir_ = getcwd(nullptr, 256);
+    strncat(srcDir_, "/resources/", 16);
+    HttpConn::userCount = 0;
+    HttpConn::srcDir = srcDir_;
+
+    
+    InitEventMode(trigMode);
+    if(!InitStocket()) {
         isClose_ = true;
+        printf("True\n");
+    }
+        
 }
 
 Server::~Server()
 {
     isClose_ = true;
+    close(sockfd_);
+    free(srcDir_);
 }
 
 void Server::Start()
@@ -19,7 +32,27 @@ void Server::Start()
     while(!isClose_) {
         int eventCnt = epoller_->Wait(timeMS);
         for(int i = 0; i < eventCnt; i++) {
+            
             int fd = epoller_->GetEventFd(i);
+            uint32_t events = epoller_->GetEvents(i);
+            printf("%s, %d\n", __func__, __LINE__);
+            if(fd == sockfd_) 
+                DealListen();
+            else if(events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)) {
+                assert(users_.count(fd) > 0);
+                CloseConn(&users_[fd]);
+            }
+            else if(events & EPOLLIN) {
+                assert(users_.count(fd) > 0);
+                DealRead(&users_[fd]);
+            }
+            else if(events & EPOLLOUT) {
+                assert(users_.count(fd) > 0);
+                DealWrite(&users_[fd]);
+            }
+            else {
+                printf("Unexpected event\n");
+            }
         }
     }
 }
@@ -38,9 +71,14 @@ void Server::InitEventMode(int trigMode)
     case 2:
         listenEvent_ |= EPOLLET;
         break;
+    case 3:
+        listenEvent_ |= EPOLLET;
+        connEvent_ |= EPOLLET;
+        break;
     default:
         break;
     }
+    HttpConn::isET = (connEvent_ & EPOLLET);
 }
 
 bool Server::InitStocket()
@@ -48,6 +86,7 @@ bool Server::InitStocket()
     int ret;
     struct sockaddr_in addr;
     if(port_ > 65535 || port_ < 1024){
+        printf("socket wrong %d\n", __LINE__);
         return false;
     }
 
@@ -63,6 +102,7 @@ bool Server::InitStocket()
 
     sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
     if(sockfd_ < 0){
+        printf("socket wrong %d\n", __LINE__);
         return false;
     }
 
@@ -75,6 +115,7 @@ bool Server::InitStocket()
     int optval = 1;
     ret = setsockopt(sockfd_, SOL_SOCKET, SO_REUSEADDR, (const void*)&optval, sizeof(int));
     if(ret == -1){
+        printf("socket wrong %d\n", __LINE__);
         close(sockfd_);
         return false;
     }
@@ -86,17 +127,20 @@ bool Server::InitStocket()
 
     ret = listen(sockfd_, 6);
     if(ret < 0){
+        printf("socket wrong %d\n", __LINE__);
         close(sockfd_);
         return false;
     }
 
     ret = epoller_->AddFd(sockfd_, listenEvent_ | EPOLLIN);
     if(ret == 0) {
+        printf("socket wrong %d\n", __LINE__);
         close(sockfd_);
         return false;
     }
 
     SetNonblock(sockfd_);
+    printf("%s, %d\n", __func__, __LINE__);
     return true;
 }
 
@@ -106,22 +150,80 @@ int Server::SetNonblock(int sockfd)
     return fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFD, 0) | O_NONBLOCK);
 }
 
-void Server::DealWrite()
+void Server::OnWrite(HttpConn* client)
 {
-
+    int ret = -1;
+    ret = client->Write();
+    if(client->ToWriteBytes() == 0) {
+        if(client->IsKeepAlive()) {
+            OnProcess(client);
+            return;
+        }
+    }
+    else if(ret < 0) {
+        epoller_->ModFd(client->GetFd(), connEvent_ | EPOLLOUT);
+    }
+    printf("%s, %d\n", __func__, __LINE__);
+    CloseConn(client);
 }
 
-void Server::DealRead()
+void Server::OnRead(HttpConn* client)
 {
-    
+    int ret = -1;
+    ret = client->Read();
+    // if(ret < 0) {
+    //     printf("Close read\n");
+    //     CloseConn(client);
+    //     return;
+    // }
+    OnProcess(client);
+}
+
+void Server::OnProcess(HttpConn* client)
+{
+    printf("%s, %d\n", __func__, __LINE__);
+    if(client->Process())
+        epoller_->ModFd(client->GetFd(), connEvent_ | EPOLLOUT);
+    else
+        epoller_->ModFd(client->GetFd(), connEvent_ | EPOLLIN);
+}
+
+void Server::DealWrite(HttpConn* client)
+{
+    printf("%s, %d\n", __func__, __LINE__);
+    thread_->AddTask(std::bind(&Server::OnWrite, this, client));
+}
+
+void Server::DealRead(HttpConn* client)
+{
+    printf("%s, %d\n", __func__, __LINE__);
+    thread_->AddTask(std::bind(&Server::OnRead, this, client));
 }
 
 void Server::DealListen()
 {
     struct sockaddr_in addr;
     socklen_t len = sizeof(addr);
-    int fd = accept(sockfd_, (struct sockaddr*)&addr, &len);
-    if(fd <= 0) return;
-    
-    AddClient(fd, addr);
+    do {
+        int fd = accept(sockfd_, (struct sockaddr*)&addr, &len);
+        if(fd <= 0) 
+            return;
+        
+        AddClient(fd, addr);
+        printf("%s, %d\n", __func__, __LINE__);
+    } while(listenEvent_ & EPOLLET);
+}
+
+void Server::AddClient(int fd, sockaddr_in addr)
+{
+    users_[fd].Init(fd, addr);
+    epoller_->AddFd(fd, EPOLLIN | connEvent_);
+    SetNonblock(fd);
+}
+
+void Server::CloseConn(HttpConn* client)
+{
+    printf("%s[%d], %d \n", __func__, client->GetFd(), __LINE__);
+    epoller_->DelFd(client->GetFd());
+    client->Close();
 }

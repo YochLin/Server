@@ -1,7 +1,9 @@
 #include "buffer.h"
 
 
-Buffer::Buffer()
+Buffer::Buffer(int buffer_size): buffer_(buffer_size), 
+                                 writepos_(0), 
+                                 readpos_(0)
 {
 
 }
@@ -32,6 +34,11 @@ const char* Buffer::BeginPtr() const
 }
 
 char* Buffer::BeginWrite()
+{
+    return BeginPtr() + writepos_;
+}
+
+const char* Buffer::BeginWriteConst() const
 {
     return BeginPtr() + writepos_;
 }
@@ -89,12 +96,38 @@ ssize_t Buffer::Readfd(int32_t sockfd)
     iov[1].iov_base = buff;
     iov[1].iov_len = sizeof(buff);
 
-    const size_t len = readv(sockfd, iov, 2);
-    if(len <= writeable)
+    const ssize_t len = readv(sockfd, iov, 2);
+    // const size_t len = read(sockfd, BeginWrite(), 2);
+    if(len < 0) {
+        printf("Bad\n");
+        return len;
+    }
+        
+    if(static_cast<size_t>(len) <= writeable) {
         writepos_ += len;
+        printf("Good\n");
+    }
     else {
+        printf("Good 2\n");
         writepos_ = buffer_.size();
         Append(buff, len - writeable);
     }
     return len;
+}
+
+void Buffer::Retrieve(size_t len)
+{
+    readpos_ += len;
+}
+
+void Buffer::RetrieveUntil(const char* end)
+{
+    Retrieve(end - Peek());
+}
+
+void Buffer::RetrieveAll()
+{
+    std::fill(buffer_.begin(), buffer_.end(), 0);
+    readpos_ = 0;
+    writepos_ = 0;
 }

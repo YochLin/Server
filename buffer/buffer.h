@@ -11,7 +11,7 @@
 class Buffer
 {
 public:
-    Buffer();
+    Buffer(int buffer_size=1024);
     ~Buffer();
 
     ssize_t Readfd(int32_t sockfd);
@@ -21,6 +21,7 @@ public:
     size_t ReadableBytes() const;
 
     char* BeginWrite();
+    const char* BeginWriteConst() const;
     void HasWriten(size_t len);
 
     const char* Peek() const;
@@ -29,6 +30,10 @@ public:
     void Append(const char* str, size_t len);
     void Append(const void* data, size_t len);
     // void Append(const Buffer& buf);
+
+    void Retrieve(size_t len);
+    void RetrieveUntil(const char* end);
+    void RetrieveAll();
 
 private:
     std::vector<char> buffer_;

@@ -5,6 +5,11 @@ Epoller::Epoller(int maxEvent):epollFd_(epoll_create(512)), events_(maxEvent)
     assert(epollFd_ >= 0 && events_.size() > 0);
 }
 
+Epoller::~Epoller()
+{
+    close(epollFd_);
+}
+
 bool Epoller::AddFd(int fd, uint32_t events)
 {
     if(fd < 0) return false;

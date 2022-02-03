@@ -14,7 +14,7 @@
 class Server
 {
 public:
-    explicit Server(int port, int thread_num);
+    explicit Server(int port, int trigMode, int thread_num);
     ~Server();
 
     void Start();
@@ -26,18 +26,26 @@ private:
     void AddClient(int fd, sockaddr_in addr);
 
     void DealListen();
-    void DealWrite();
-    void DealRead();    
+    void DealWrite(HttpConn* client);
+    void DealRead(HttpConn* client);    
+
+    void CloseConn(HttpConn* client);
 
     static int SetNonblock(int sockfd);
 
 private:
+
+    void OnWrite(HttpConn* client);
+    void OnRead(HttpConn* client);
+    void OnProcess(HttpConn* client);
+
 
     int port_;
     int sockfd_;
     bool openLinger_;
     int timeoutMS_;
     bool isClose_;
+    char* srcDir_;
     
     uint32_t listenEvent_;
     uint32_t connEvent_;

@@ -15,7 +15,10 @@ OBJS = $(SRCS:%.cpp=%.o)
 # BUILDOBJS = $(OBJS:%.o=$(BUILDIR)/%.o)
 
 INCLUDES = -I. \
-		   -I./pool/
+		   -Iserver/ \
+		   -Ipool/ \
+		   -Ihttp/ \
+		   -Ibuffer/
 
 LIBS = -lpthread
 
@@ -23,8 +26,6 @@ $(TARGET):$(OBJS)
 	$(CXX) -o $@ $^ $(LIBS)
 
 %.o:%.cpp
-	mkdir -p $(BUILDIR)/$<
-	# echo $(FILES)
 	$(CXX) -o $@ -c $< $(CFLAGS) $(INCLUDES)
 
 clean:
