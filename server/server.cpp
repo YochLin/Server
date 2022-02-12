@@ -1,9 +1,12 @@
 #include "server.h"
 
-Server::Server(int port, int trigMode, int thread_num) : port_(port),
-                                                         thread_(new ThreadPool(thread_num)), 
-                                                         isClose_(false),
-                                                         epoller_(new Epoller())
+Server::Server(int port, int trigMode, int thread_num, 
+               int timeout) : port_(port),
+                              thread_(new ThreadPool(thread_num)), 
+                              isClose_(false),
+                              epoller_(new Epoller()),
+                              timeoutMS_(timeout),
+                              timer_(new Timer())
 {
     srcDir_ = getcwd(nullptr, 256);
     strncat(srcDir_, "/resources/", 16);
@@ -30,6 +33,8 @@ void Server::Start()
 {
     int timeMS = -1;
     while(!isClose_) {
+        if(timeoutMS_ > 0)
+            timeMS = timer_->GetNextTick();
         int eventCnt = epoller_->Wait(timeMS);
         for(int i = 0; i < eventCnt; i++) {
             
@@ -191,12 +196,14 @@ void Server::OnProcess(HttpConn* client)
 void Server::DealWrite(HttpConn* client)
 {
     printf("%s, %d\n", __func__, __LINE__);
+    ExtentTime(client);
     thread_->AddTask(std::bind(&Server::OnWrite, this, client));
 }
 
 void Server::DealRead(HttpConn* client)
 {
     printf("%s, %d\n", __func__, __LINE__);
+    ExtentTime(client);
     thread_->AddTask(std::bind(&Server::OnRead, this, client));
 }
 
@@ -217,8 +224,16 @@ void Server::DealListen()
 void Server::AddClient(int fd, sockaddr_in addr)
 {
     users_[fd].Init(fd, addr);
+    if(timeoutMS_ > 0)
+        timer_->Add(fd, timeoutMS_, std::bind(&Server::CloseConn, this, &users_[fd]));
     epoller_->AddFd(fd, EPOLLIN | connEvent_);
     SetNonblock(fd);
+}
+
+void Server::ExtentTime(HttpConn* client)
+{
+    if(timeoutMS_ > 0)
+        timer_->Adjust(client->GetFd(), timeoutMS_);
 }
 
 void Server::CloseConn(HttpConn* client)

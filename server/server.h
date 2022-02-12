@@ -10,11 +10,12 @@
 #include "eopller.h"
 #include "threadpool.h"
 #include "httpconn.h"
+#include "timer.h"
 
 class Server
 {
 public:
-    explicit Server(int port, int trigMode, int thread_num);
+    explicit Server(int port, int trigMode, int thread_num, int timeout);
     ~Server();
 
     void Start();
@@ -28,6 +29,8 @@ private:
     void DealListen();
     void DealWrite(HttpConn* client);
     void DealRead(HttpConn* client);    
+
+    void ExtentTime(HttpConn* client);
 
     void CloseConn(HttpConn* client);
 
@@ -50,6 +53,7 @@ private:
     uint32_t listenEvent_;
     uint32_t connEvent_;
 
+    std::unique_ptr<Timer> timer_;
     std::unique_ptr<Epoller> epoller_;
     std::unique_ptr<ThreadPool> thread_;
     std::unordered_map<int, HttpConn> users_;
