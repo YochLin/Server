@@ -167,6 +167,7 @@ void Server::OnWrite(HttpConn* client)
     }
     else if(ret < 0) {
         epoller_->ModFd(client->GetFd(), connEvent_ | EPOLLOUT);
+        return;
     }
     printf("%s, %d\n", __func__, __LINE__);
     CloseConn(client);
