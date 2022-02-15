@@ -7,6 +7,7 @@
 
 #include "httprequest.h"
 #include "httpresponse.h"
+#include "buffer.h"
 class HttpConn
 {
 public:
@@ -34,17 +35,17 @@ public:
     static const char* srcDir;
     static std::atomic<int> userCount;
 
+    Buffer readBuff_;
+    Buffer writeBuff_;
+
 private:
     int32_t fd_;
     struct sockaddr_in addr_;
 
     bool isClose_;
 
-    int iov_cnt;
+    int iov_cnt_;
     struct iovec iov_[2];
-
-    Buffer readBuff_;
-    Buffer writeBuff_;
 
     HttpRequest request_;
     HttpResponse response_;
