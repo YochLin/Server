@@ -33,7 +33,6 @@ bool HttpRequest::Parse(Buffer &buff)
         return false; 
 
     const char CRLF[] = "\r\n";
-    printf("%s, %d\n", __func__, __LINE__);
     while(buff.ReadableBytes() && state_ != FINISH) {
         const char* lineEnd = std::search(buff.Peek(), buff.BeginWriteConst(), CRLF, CRLF+2);
         std::string line(buff.Peek(), lineEnd);
@@ -65,7 +64,6 @@ bool HttpRequest::Parse(Buffer &buff)
 
 void HttpRequest::ParsePath()
 {
-    printf("%s, %d\n", __func__, __LINE__);
     if(path_ == "/")
         path_ = "index.html";
     else {
@@ -82,7 +80,6 @@ bool HttpRequest::ParseRequestLine(const std::string line)
 {
     std::regex pattern("^([^ ]*) ([^ ]*) HTTP/([^ ]*)$");
     std::smatch submatch;
-    printf("%s, %d\n", __func__, __LINE__);
     if(std::regex_match(line, submatch, pattern)) {
         method_ = submatch[1];
         path_ = submatch[2];
@@ -97,7 +94,6 @@ void HttpRequest::ParseHeader(const std::string line)
 {
     std::regex pattern("^([^]*): ?(.*)$");
     std::smatch submatch;
-    printf("%s, %d\n", __func__, __LINE__);
     if(std::regex_match(line, submatch, pattern)) {
         header_[submatch[1]] = submatch[2];
     }
@@ -107,7 +103,6 @@ void HttpRequest::ParseHeader(const std::string line)
 
 void HttpRequest::ParseBody(const std::string line)
 {
-    printf("%s, %d\n", __func__, __LINE__);
     body_ = line;
     ParsePost();
     state_ = FINISH;

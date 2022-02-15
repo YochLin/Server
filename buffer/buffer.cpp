@@ -99,16 +99,13 @@ ssize_t Buffer::Readfd(int32_t sockfd)
     const ssize_t len = readv(sockfd, iov, 2);
     // const size_t len = read(sockfd, BeginWrite(), 2);
     if(len < 0) {
-        printf("Bad\n");
         return len;
     }
         
     if(static_cast<size_t>(len) <= writeable) {
         writepos_ += len;
-        printf("Good\n");
     }
     else {
-        printf("Good 2\n");
         writepos_ = buffer_.size();
         Append(buff, len - writeable);
     }
