@@ -2,89 +2,81 @@
 
 void Timer::Add(int32_t fd, int timeout, const TimeoutCallBack& cb)
 {
-    size_t i;
-    if(ref_.count(fd) == 0) { // 判斷此 fd 是否已經加入
-        i = heap_.size();
-        ref_[fd] = i;
+    size_t index;
+    //  判斷 fd 是否已存在
+    if(ref_.count(fd) == 0) { 
+        index = heap_.size();
+        ref_[fd] = index;
         heap_.push_back({
             fd,
             Clock::now() + MS(timeout),
             cb
         });
-        Siftup(i);
+        Siftup(index);
     }
     else {
-        i = ref_[fd];
-        heap_[i].expires = Clock::now() + MS(timeout);
-        heap_[i].cb = cb;
-        if(!Siftdown(i, heap_.size())) 
-            Siftup(i);
-    }
-}
-
-void Timer::Siftup(size_t i)
-{
-    int j = (i - 1) / 2;
-    while(j >= 0) {
-        if(heap_[j] < heap_[i])
-            break;
-        SwapNode(i, j);
-        i = j;
-        j = (i - 1) / 2;
+        index = ref_[fd];
+        heap_[index].expires = Clock::now() + MS(timeout);
+        heap_[index].cb = cb;
+        Siftdown(index);
     }
 }
 
 void Timer::SwapNode(size_t i , size_t j)
 {
     std::swap(heap_[i], heap_[j]);
-    ref_[heap_[i].id] = i;
-    ref_[heap_[j].id] = j;
+    ref_[heap_[i].id] = j;
+    ref_[heap_[j].id] = i;
 }
 
-bool Timer::Siftdown(size_t index, size_t n)
+//      0
+//    1    2
+//  3  4  5  6
+void Timer::Siftup(size_t index)
 {
-    size_t i = index;
-    size_t j = i * 2 + 1;
-    while(j < n) {
-        if(j + 1 < n && heap_[j + 1] < heap_[j])
-            j++;
-        if(heap_[i] < heap_[j])
-            break;
-        SwapNode(i, j);
-        i = j;
-        j = i * 2 - 1;
+    int parent_node = (index - 1) / 2;
+    if(parent_node >= 0 && heap_[index] < heap_[parent_node]) {
+        SwapNode(index, parent_node);
+        Siftup(parent_node);
     }
-    return i > index;
+}
+
+//      0
+//    1    2
+//  3  4  5  6
+void Timer::Siftdown(size_t index)
+{
+    size_t left_child = (index + 1) * 2 - 1;
+    size_t right_child = (index + 1) * 2;
+    int small_index;
+    // printf("%s, index: %d, left_child: %d, right_child: %d\n", __func__, index, left_child, right_child);
+
+    if(left_child < heap_.size() && heap_[left_child] < heap_[index])
+        small_index = left_child;
+    else
+        small_index = index;
+    
+    if(right_child < heap_.size() && heap_[right_child] < heap_[small_index])
+        small_index = right_child;
+    
+    if(small_index != index) {
+        SwapNode(small_index, index);
+        Siftdown(small_index);
+    }
+    // return;
 }
 
 void Timer::Adjust(int32_t fd, int timeout)
 {
     heap_[ref_[fd]].expires = Clock::now() + MS(timeout);
-    Siftdown(ref_[fd], heap_.size());
+    Siftdown(ref_[fd]);
 }
 
-void Timer::Del(size_t index)
+void Timer::Pop()
 {
-    // 將要刪除的節點換到隊尾，並調整整體 heap 排序
-    size_t i = index;
-    size_t n = heap_.size() - 1;
-    if(i < n) {
-        SwapNode(i, n);
-        if(!Siftdown(i, n))
-            Siftup(i);
-    }
-
-    // 刪除隊尾節點
-    ref_.erase(heap_.back().id);
-    heap_.pop_back();
-}
-
-void Timer::DoWork(int32_t fd)
-{
-    int i = ref_[fd];
-    TimerNode node = heap_[i];
-    node.cb();
-    Del(i);
+    heap_[0] = heap_[heap_.size() - 1];
+    heap_.erase(heap_.begin() + heap_.size() - 1);
+    Siftdown(1);
 }
 
 void Timer::Tick()
@@ -96,11 +88,6 @@ void Timer::Tick()
         node.cb();
         Pop();
     }
-}
-
-void Timer::Pop()
-{
-    Del(0);
 }
 
 void Timer::Clear()
