@@ -158,7 +158,8 @@ int Server::SetNonblock(int sockfd)
 void Server::OnWrite(HttpConn* client)
 {
     int ret = -1;
-    ret = client->Write();
+    int writeErrno = 0;
+    ret = client->Write(&writeErrno);
     if(client->ToWriteBytes() == 0) {
         if(client->IsKeepAlive()) {
             OnProcess(client);
@@ -176,12 +177,13 @@ void Server::OnWrite(HttpConn* client)
 void Server::OnRead(HttpConn* client)
 {
     int ret = -1;
-    ret = client->Read();
-    // if(ret < 0) {
-    //     printf("Close read\n");
-    //     CloseConn(client);
-    //     return;
-    // }
+    int readError = 0;
+    ret = client->Read(&readError);
+    if(ret <= 0 && readError != EAGAIN) {
+        printf("Close read\n");
+        CloseConn(client);
+        return;
+    }
     OnProcess(client);
 }
 

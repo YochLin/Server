@@ -55,19 +55,19 @@ void HttpConn::Close()
     }
 }
 
-ssize_t HttpConn::Read()
+ssize_t HttpConn::Read(int* saveError)
 {
     ssize_t len = -1;
     do {
-        len = readBuff_.Readfd(fd_);
-        printf("%s, %d, %d, %s\n", __func__, __LINE__, len, readBuff_.GetData());
+        len = readBuff_.Readfd(fd_, saveError);
+        printf("%s, %d, %d\n", __func__, __LINE__, len);
         if(len <= 0)
             break;
     } while(isET);
     return len;
 }
 
-ssize_t HttpConn::Write()
+ssize_t HttpConn::Write(int* saveErrno)
 {
     ssize_t len = -1;
     // do {
@@ -78,8 +78,10 @@ ssize_t HttpConn::Write()
     // } while(isET);
     do {
         len = writev(fd_, iov_, iov_cnt_);
-        if(len <= 0)
+        if(len <= 0) {
+            *saveErrno = errno;
             break;
+        }
         if(ToWriteBytes() == 0)
             break;
         else if(static_cast<size_t>(len) > iov_[0].iov_len) {

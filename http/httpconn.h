@@ -16,8 +16,8 @@ public:
 
     void Init(int32_t sockfd, const sockaddr_in& addr);
 
-    ssize_t Read();
-    ssize_t Write();
+    ssize_t Read(int* saveError);
+    ssize_t Write(int* saveError);
     int ToWriteBytes();
 
     int32_t GetFd() const;

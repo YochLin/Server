@@ -14,8 +14,8 @@ public:
     Buffer(int buffer_size=1024);
     ~Buffer();
 
-    ssize_t Readfd(int32_t sockfd);
-    ssize_t Writefd(int32_t sockfd);
+    ssize_t Readfd(int32_t sockfd, int* saveError);
+    ssize_t Writefd(int32_t sockfd, int* saveError);
 
     size_t WriteableBytes() const;
     size_t ReadableBytes() const;

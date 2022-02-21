@@ -74,17 +74,19 @@ void Buffer::Append(const void* data, size_t len)
     
 // }
 
-ssize_t Buffer::Writefd(int32_t sockfd)
+ssize_t Buffer::Writefd(int32_t sockfd, int* saveError)
 {
     size_t read_size = ReadableBytes();
     ssize_t len = write(sockfd, Peek(), read_size);
-    if(len < 0)
+    if(len < 0) {
+        *saveError = errno;
         return len;
+    }
     readpos_ += len;
     return len;
 }
 
-ssize_t Buffer::Readfd(int32_t sockfd)
+ssize_t Buffer::Readfd(int32_t sockfd, int* saveError)
 {
     char buff[65535];
     struct iovec iov[2];
@@ -99,10 +101,10 @@ ssize_t Buffer::Readfd(int32_t sockfd)
     const ssize_t len = readv(sockfd, iov, 2);
     // const size_t len = read(sockfd, BeginWrite(), 2);
     if(len < 0) {
-        return len;
+        *saveError = errno;
     }
         
-    if(static_cast<size_t>(len) <= writeable) {
+    else if(static_cast<size_t>(len) <= writeable) {
         writepos_ += len;
     }
     else {
