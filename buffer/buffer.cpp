@@ -103,7 +103,6 @@ ssize_t Buffer::Readfd(int32_t sockfd, int* saveError)
     if(len < 0) {
         *saveError = errno;
     }
-        
     else if(static_cast<size_t>(len) <= writeable) {
         writepos_ += len;
     }

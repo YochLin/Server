@@ -4,6 +4,6 @@ RUN apt-get install -y build-essential \
                         wget \
                         git \
                         vim \
-                        mysql-server
+                        libmysqlclient-dev
 
 WORKDIR /app

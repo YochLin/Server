@@ -8,7 +8,8 @@ SRCS = $(wildcard ./*.cpp \
 				  ./buffer/*.cpp \
 				  ./http/*.cpp \
 				  ./pool/*.cpp \
-				  ./server/*.cpp)
+				  ./timer/*.cpp \
+				  ./server/*.cpp )
 
 # FILES = $(notdir $(SRCS))
 OBJS = $(SRCS:%.cpp=%.o)
@@ -18,7 +19,8 @@ INCLUDES = -I. \
 		   -Iserver/ \
 		   -Ipool/ \
 		   -Ihttp/ \
-		   -Ibuffer/
+		   -Ibuffer/ \
+		   -Itimer/
 
 LIBS = -lpthread
 

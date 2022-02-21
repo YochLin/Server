@@ -1,12 +1,11 @@
 #include "httprequest.h"
 
 const std::unordered_set<std::string> HttpRequest::DEFAULT_HTML {
-    "/index", "/register", "login",
-    "/welcome", "/video", "/picture"
+    "/index", "/register"
 };
 
 const std::unordered_map<std::string, int> HttpRequest::DEFAULT_HTML_TAG {
-    {"/register.html", 0}, {"/login.html", 1}
+    {"/register.html", 0}
 };
 
 HttpRequest::HttpRequest()
@@ -36,6 +35,7 @@ bool HttpRequest::Parse(Buffer &buff)
     while(buff.ReadableBytes() && state_ != FINISH) {
         const char* lineEnd = std::search(buff.Peek(), buff.BeginWriteConst(), CRLF, CRLF+2);
         std::string line(buff.Peek(), lineEnd);
+        printf("%s\n", line);
         switch(state_) {
             case REQUEST_LINE:
                 if(!ParseRequestLine(line))

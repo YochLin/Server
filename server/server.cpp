@@ -127,6 +127,7 @@ bool Server::InitStocket()
 
     ret = bind(sockfd_, (struct sockaddr *)&addr, sizeof(addr));
     if(ret < 0){
+        close(sockfd_);
         return false;
     }
 
@@ -231,6 +232,7 @@ void Server::AddClient(int fd, sockaddr_in addr)
         timer_->Add(fd, timeoutMS_, std::bind(&Server::CloseConn, this, &users_[fd]));
     epoller_->AddFd(fd, EPOLLIN | connEvent_);
     SetNonblock(fd);
+    printf("Client[%d] in!\n", users_[fd].GetFd());
 }
 
 void Server::ExtentTime(HttpConn* client)
